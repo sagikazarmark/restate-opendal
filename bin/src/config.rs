@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
-pub struct Settings {
+pub struct Config {
     #[serde(default)]
     pub restate: RestateConfig,
 

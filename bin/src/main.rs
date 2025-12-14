@@ -20,7 +20,7 @@ use restate_opendal::{
     dynamic, dynamic::Opendal as DynamicOpendal, scoped, scoped::Opendal as ScopedOpendal,
 };
 
-use crate::config::Settings;
+use crate::config::Config;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -86,7 +86,7 @@ struct Cli {
 }
 
 impl Cli {
-    fn load_config(&self) -> Result<Settings> {
+    fn load_config(&self) -> Result<Config> {
         let mut figment = Figment::new();
 
         if let Some(path) = self.config.as_deref() {
