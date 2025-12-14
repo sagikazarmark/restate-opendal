@@ -13,27 +13,50 @@ use crate::{OperatorFactory, error::Error, service::*};
 pub trait Opendal {
     /// Presign an operation for read.
     #[name = "presignRead"]
-    async fn presign_read(request: Json<PresignRequest>) -> HandlerResult<Json<PresignResponse>>;
+    async fn presign_read(
+        request: Json<PresignReadRequest>,
+    ) -> HandlerResult<Json<PresignResponse>>;
+
+    /// Presign an operation for read.
+    #[name = "presignStat"]
+    async fn presign_stat(
+        request: Json<PresignStatRequest>,
+    ) -> HandlerResult<Json<PresignResponse>>;
 }
 
-#[derive(Debug, Deserialize, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-#[schemars(example = example_presign_request())]
-pub struct PresignRequest {
-    /// URI to the object.
-    pub uri: Url,
-    /// Expiration of the presigned URL.
-    #[serde(default, with = "humantime_serde")]
-    #[schemars(with = "Option<String>")]
-    pub expiration: Duration,
+macro_rules! presign_request {
+    ($name:ident) => {
+        paste::paste! {
+            #[derive(Debug, Deserialize, Serialize, JsonSchema)]
+            #[serde(rename_all = "camelCase")]
+            #[schemars(example = [<example_presign_ $name:snake _request>]())]
+            pub struct [<Presign $name Request>] {
+                /// Object URI.
+                pub uri: Url,
+                /// Expiration of the presigned URL.
+                #[serde(with = "humantime_serde")]
+                #[schemars(with = "String")]
+                pub expiration: Duration,
+                /// Options for the presigned URL.
+                #[serde(skip_serializing_if = "Option::is_none")]
+                pub options: Option<[<$name Options>]>,
+            }
+
+            fn [<example_presign_ $name:snake _request>]() -> [<Presign $name Request>] {
+                [<Presign $name Request>] {
+                    uri: Url::parse("https://example.com/path/to/file.pdf").unwrap(),
+                    expiration: Duration::from_secs(3600),
+                    options: None,
+                }
+            }
+        }
+    };
 }
 
-fn example_presign_request() -> PresignRequest {
-    PresignRequest {
-        uri: Url::parse("https://example.com/path/to/file.pdf").unwrap(),
-        expiration: Duration::from_secs(3600),
-    }
-}
+presign_request!(Read);
+presign_request!(Stat);
+// presign_request!(Write);
+// presign_request!(Delete);
 
 pub struct OpendalImpl {
     factory: OperatorFactory,
@@ -44,15 +67,40 @@ impl OpendalImpl {
         Self { factory }
     }
 
-    async fn _presign_read(&self, request: PresignRequest) -> Result<PresignResponse, Error> {
+    async fn _presign_read(&self, request: PresignReadRequest) -> Result<PresignResponse, Error> {
         let (uri, path) = parse_uri(request.uri);
 
         let operator = self.factory.from_uri(uri.as_str())?;
 
-        Ok(operator
-            .presign_read(path.as_str(), request.expiration)
-            .await?
-            .into())
+        if let Some(options) = request.options {
+            Ok(operator
+                .presign_read_options(path.as_str(), request.expiration, options.into())
+                .await?
+                .into())
+        } else {
+            Ok(operator
+                .presign_read(path.as_str(), request.expiration)
+                .await?
+                .into())
+        }
+    }
+
+    async fn _presign_stat(&self, request: PresignStatRequest) -> Result<PresignResponse, Error> {
+        let (uri, path) = parse_uri(request.uri);
+
+        let operator = self.factory.from_uri(uri.as_str())?;
+
+        if let Some(options) = request.options {
+            Ok(operator
+                .presign_stat_options(path.as_str(), request.expiration, options.into())
+                .await?
+                .into())
+        } else {
+            Ok(operator
+                .presign_stat(path.as_str(), request.expiration)
+                .await?
+                .into())
+        }
     }
 }
 
@@ -61,10 +109,21 @@ impl Opendal for OpendalImpl {
     async fn presign_read(
         &self,
         ctx: Context<'_>,
-        request: Json<PresignRequest>,
+        request: Json<PresignReadRequest>,
     ) -> HandlerResult<Json<PresignResponse>> {
         Ok(ctx
             .run(async || Ok(self._presign_read(request.into_inner()).await.map(Json)?))
+            .await?)
+    }
+
+    /// Presign an operation for stat.
+    async fn presign_stat(
+        &self,
+        ctx: Context<'_>,
+        request: Json<PresignStatRequest>,
+    ) -> HandlerResult<Json<PresignResponse>> {
+        Ok(ctx
+            .run(async || Ok(self._presign_stat(request.into_inner()).await.map(Json)?))
             .await?)
     }
 }

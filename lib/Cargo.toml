@@ -15,7 +15,9 @@ content_disposition = "0.4.0"
 futures = "0.3"
 http = "1.4.0"
 humantime-serde = { workspace = true }
+jiff = "0.2.16"
 opendal = { workspace = true, features = [ "services-memory" ] }
+paste = "1.0.15"
 restate-sdk = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true }

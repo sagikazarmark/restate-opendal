@@ -1808,7 +1808,9 @@ dependencies = [
  "futures",
  "http",
  "humantime-serde",
+ "jiff",
  "opendal",
+ "paste",
  "restate-sdk",
  "schemars 1.1.0",
  "serde",
@@ -2035,6 +2037,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9558e172d4e8533736ba97870c4b2cd63f84b382a3d6eb063da41b91cce17289"
 dependencies = [
  "dyn-clone",
+ "jiff",
  "ref-cast",
  "schemars_derive 1.1.0",
  "serde",
