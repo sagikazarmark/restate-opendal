@@ -25,8 +25,6 @@ async fn main() -> Result<()> {
 
     let config = cli.load_config()?;
 
-    print!("Config: {:?}", config);
-
     // Register HTTP scheme (for some reason these are not registered by default)
     DEFAULT_OPERATOR_REGISTRY.register::<services::Http>(services::HTTP_SCHEME);
     DEFAULT_OPERATOR_REGISTRY.register::<services::Http>("https");
