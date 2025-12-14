@@ -15,7 +15,7 @@ path = "src/main.rs"
 [dependencies]
 restate-opendal = { workspace = true }
 
-figment = { version = "0.10.19", features = ["env"] }
+figment = { version = "0.10.19", features = ["env", "json", "toml", "yaml"] }
 humantime-serde = { workspace = true }
 opendal = { workspace = true, features = [
   "services-http",
@@ -32,3 +32,5 @@ tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 url = { workspace = true }
+clap = { version = "4.5.53", features = ["derive", "env"] }
+anyhow = "1.0.100"
