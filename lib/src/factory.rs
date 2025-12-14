@@ -30,10 +30,13 @@ impl OperatorFactory {
 
                 let profile_name = url.scheme();
 
-                let profile = profiles.get(profile_name).ok_or_else(|| {
-                    Error::new(ErrorKind::Unsupported, "Profile not found")
-                        .with_context("profile_name", profile_name)
-                })?;
+                let mut profile = profiles
+                    .get(profile_name)
+                    .ok_or_else(|| {
+                        Error::new(ErrorKind::Unsupported, "Profile not found")
+                            .with_context("profile_name", profile_name)
+                    })?
+                    .clone();
 
                 let scheme = profile.get("type").ok_or_else(|| {
                     Error::new(ErrorKind::Unexpected, "Missing 'type' in profile")
@@ -42,7 +45,14 @@ impl OperatorFactory {
 
                 let scheme = Scheme::from_str(scheme)?;
 
-                Operator::via_iter(scheme, profile.clone())
+                if !profile.contains_key("bucket")
+                    && let Some(host) = url.host()
+                {
+                    // TODO: check if bucket is used everywhere, add better fallback logic
+                    profile.insert("bucket".to_string(), host.to_string());
+                }
+
+                Operator::via_iter(scheme, profile)
             }
             OperatorFactory::Chain(factories) => {
                 for factory in factories {
