@@ -28,7 +28,9 @@ async fn main() -> Result<()> {
 
     tracing_subscriber::fmt::init();
 
-    let settings = cli.load_config()?;
+    let config = cli.load_config()?;
+
+    print!("Config: {:?}", config);
 
     // Register HTTP scheme (for some reason these are not registered by default)
     DEFAULT_OPERATOR_REGISTRY.register::<services::Http>(services::HTTP_SCHEME);
@@ -42,15 +44,15 @@ async fn main() -> Result<()> {
             |o| o.layer(LoggingLayer::default()),
         )));
 
-        if let Some(store_url) = settings.store.uri {
+        if let Some(store_url) = config.store.uri {
             let operator = factory.from_uri(store_url.as_str())?;
             let service = scoped::OpendalImpl::new(operator);
 
-            endpoint = endpoint.bind_with_options(service.serve(), settings.restate.service.into())
+            endpoint = endpoint.bind_with_options(service.serve(), config.restate.service.into())
         } else {
             let service = dynamic::OpendalImpl::new(factory);
 
-            endpoint = endpoint.bind_with_options(service.serve(), settings.restate.service.into())
+            endpoint = endpoint.bind_with_options(service.serve(), config.restate.service.into())
         }
     }
 
@@ -104,7 +106,11 @@ impl Cli {
             };
         }
 
-        figment = figment.merge(Env::raw().split("__"));
+        figment = figment.merge(Env::raw().split("__")).merge(
+            Env::prefixed("OPENDAL_")
+                .filter(|k| k.starts_with("profile_"))
+                .split("_"),
+        );
 
         figment.extract().context("Failed to parse configuration")
     }

@@ -12,6 +12,9 @@ pub struct Config {
 
     #[serde(default)]
     pub store: StoreConfig,
+
+    #[serde(default, alias = "profile")]
+    pub profiles: HashMap<String, HashMap<String, String>>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
