@@ -35,7 +35,10 @@ async fn main() -> Result<()> {
 
     {
         let factory = OperatorFactory::Custom(Box::new(LambdaOperatorFactory::new(
-            OperatorFactory::Default,
+            OperatorFactory::Chain(vec![
+                OperatorFactory::Profiles(config.profiles.clone()),
+                OperatorFactory::Default,
+            ]),
             |o| o.layer(LoggingLayer::default()),
         )));
 
@@ -52,12 +55,15 @@ async fn main() -> Result<()> {
     }
 
     {
-        let operator_factory = OperatorFactory::Custom(Box::new(LambdaOperatorFactory::new(
-            OperatorFactory::Default,
+        let factory = OperatorFactory::Custom(Box::new(LambdaOperatorFactory::new(
+            OperatorFactory::Chain(vec![
+                OperatorFactory::Profiles(config.profiles.clone()),
+                OperatorFactory::Default,
+            ]),
             |o| o.layer(LoggingLayer::default()),
         )));
 
-        endpoint = endpoint.bind(extra::ServiceImpl::new(operator_factory).serve());
+        endpoint = endpoint.bind(extra::ServiceImpl::new(factory).serve());
     }
 
     let bind_addr = format!("0.0.0.0:{}", cli.port);
@@ -104,7 +110,8 @@ impl Cli {
         figment = figment.merge(Env::raw().split("__")).merge(
             Env::prefixed("OPENDAL_")
                 .filter(|k| k.starts_with("profile_"))
-                .split("_"),
+                .map(move |key| key.as_str().replacen("_", ".", 2).into()),
+            // .split("_"),
         );
 
         figment.extract().context("Failed to parse configuration")
