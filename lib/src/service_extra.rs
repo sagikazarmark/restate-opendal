@@ -13,7 +13,7 @@ use crate::terminal;
 
 #[restate_sdk::service]
 #[name = "OpenDALExtra"]
-pub trait OpendalExtra {
+pub trait Service {
     /// Copy a file from one location to another.
     async fn copy(request: Json<CopyRequest>) -> HandlerResult<()>;
 }
@@ -37,11 +37,11 @@ fn example_copy_request() -> CopyRequest {
 }
 
 #[derive(Default)]
-pub struct OpendalExtraImpl {
+pub struct ServiceImpl {
     factory: OperatorFactory,
 }
 
-impl OpendalExtraImpl {
+impl ServiceImpl {
     pub fn new(factory: OperatorFactory) -> Self {
         Self { factory }
     }
@@ -118,7 +118,7 @@ impl OpendalExtraImpl {
     }
 }
 
-impl OpendalExtra for OpendalExtraImpl {
+impl Service for ServiceImpl {
     /// Copy a file from one location to another.
     async fn copy(&self, ctx: Context<'_>, request: Json<CopyRequest>) -> HandlerResult<()> {
         ctx.run(async || Ok(self._copy(request.into_inner()).await?))

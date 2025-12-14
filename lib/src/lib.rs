@@ -13,7 +13,9 @@ pub mod dynamic {
 }
 
 mod service_extra;
-pub use service_extra::*;
+pub mod extra {
+    pub use super::service_extra::*;
+}
 
 mod error;
 

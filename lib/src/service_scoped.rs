@@ -10,7 +10,7 @@ use crate::{error::Error, service::*};
 
 #[restate_sdk::service]
 #[name = "OpenDAL"]
-pub trait Opendal {
+pub trait Service {
     /// Presign an operation for read.
     #[name = "presignRead"]
     async fn presign_read(
@@ -58,11 +58,11 @@ presign_request!(Stat);
 // presign_request!(Write);
 // presign_request!(Delete);
 
-pub struct OpendalImpl {
+pub struct ServiceImpl {
     operator: Operator,
 }
 
-impl OpendalImpl {
+impl ServiceImpl {
     pub fn new(operator: Operator) -> Self {
         Self { operator }
     }
@@ -100,7 +100,7 @@ impl OpendalImpl {
     }
 }
 
-impl Opendal for OpendalImpl {
+impl Service for ServiceImpl {
     /// Presign an operation for read.
     async fn presign_read(
         &self,

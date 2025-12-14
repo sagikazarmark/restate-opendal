@@ -8,17 +8,12 @@ use figment::{
     Figment,
     providers::{Env, Format, Json, Toml, Yaml},
 };
-use opendal::DEFAULT_OPERATOR_REGISTRY;
-use opendal::layers::LoggingLayer;
-use opendal::services;
+use opendal::{DEFAULT_OPERATOR_REGISTRY, layers::LoggingLayer, services};
 use restate_sdk::{endpoint::Endpoint, http_server::HttpServer};
 
-use restate_opendal::LambdaOperatorFactory;
-use restate_opendal::OperatorFactory;
-use restate_opendal::{OpendalExtra, OpendalExtraImpl};
-use restate_opendal::{
-    dynamic, dynamic::Opendal as DynamicOpendal, scoped, scoped::Opendal as ScopedOpendal,
-};
+use restate_opendal::{LambdaOperatorFactory, OperatorFactory};
+use restate_opendal::{dynamic, dynamic::Service as _, scoped, scoped::Service as _};
+use restate_opendal::{extra, extra::Service as _};
 
 use crate::config::Config;
 
@@ -46,11 +41,11 @@ async fn main() -> Result<()> {
 
         if let Some(store_url) = config.store.uri {
             let operator = factory.from_uri(store_url.as_str())?;
-            let service = scoped::OpendalImpl::new(operator);
+            let service = scoped::ServiceImpl::new(operator);
 
             endpoint = endpoint.bind_with_options(service.serve(), config.restate.service.into())
         } else {
-            let service = dynamic::OpendalImpl::new(factory);
+            let service = dynamic::ServiceImpl::new(factory);
 
             endpoint = endpoint.bind_with_options(service.serve(), config.restate.service.into())
         }
@@ -62,7 +57,7 @@ async fn main() -> Result<()> {
             |o| o.layer(LoggingLayer::default()),
         )));
 
-        endpoint = endpoint.bind(OpendalExtraImpl::new(operator_factory).serve());
+        endpoint = endpoint.bind(extra::ServiceImpl::new(operator_factory).serve());
     }
 
     let bind_addr = format!("0.0.0.0:{}", cli.port);
