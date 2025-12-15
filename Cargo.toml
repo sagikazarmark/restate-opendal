@@ -13,6 +13,7 @@ homepage = "https://github.com/sagikazarmark/restate-opendal"
 [workspace.dependencies]
 restate-opendal = { path = "lib" }
 
+anyhow = "1.0"
 humantime-serde = "1.1.1"
 opendal = { version = "0.55" }
 schemars = { version = "1.1", features = ["jiff02", "url2"] }

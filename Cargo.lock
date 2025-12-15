@@ -1914,7 +1914,6 @@ name = "restate-opendal"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bytes",
  "content_disposition",
  "futures",
  "http",
