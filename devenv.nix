@@ -4,7 +4,8 @@
   dotenv.enable = true;
 
   packages = with pkgs; [
-    minio-client
+    cargo-release
+    cargo-watch
   ];
 
   languages.rust = {
