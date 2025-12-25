@@ -1,13 +1,12 @@
 use std::{convert::TryFrom, time::Duration};
 
 use anyhow::Result;
-use futures::{StreamExt, TryStreamExt};
 use opendal::Operator;
 use restate_sdk::prelude::*;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{error::Error, service::*};
+use crate::{error::Error, service, service::*};
 
 #[restate_sdk::service]
 #[name = "OpenDAL"]
@@ -28,63 +27,6 @@ pub trait Service {
     ) -> HandlerResult<Json<PresignResponse>>;
 }
 
-#[derive(Debug, Deserialize, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-#[schemars(example = example_list_request())]
-pub struct ListRequest {
-    /// Object path.
-    pub path: String,
-    /// Options for the presigned URL.
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        with = "option_list_options"
-    )]
-    #[schemars(with = "Option<ListOptionsDef>")]
-    pub options: Option<opendal::options::ListOptions>,
-}
-
-fn example_list_request() -> ListRequest {
-    ListRequest {
-        path: "path/to/file.pdf".to_string(),
-        options: None,
-    }
-}
-
-macro_rules! presign_request {
-    ($name:ident) => {
-        paste::paste! {
-            #[derive(Debug, Deserialize, Serialize, JsonSchema)]
-            #[serde(rename_all = "camelCase")]
-            #[schemars(example = [<example_presign_ $name:snake _request>]())]
-            pub struct [<Presign $name Request>] {
-                /// Object path.
-                pub path: String,
-                /// Expiration of the presigned URL.
-                #[serde(with = "humantime_serde")]
-                #[schemars(with = "String")]
-                pub expiration: Duration,
-                /// Options for the presigned URL.
-                #[serde(skip_serializing_if = "Option::is_none")]
-                pub options: Option<[<$name Options>]>,
-            }
-
-            fn [<example_presign_ $name:snake _request>]() -> [<Presign $name Request>] {
-                [<Presign $name Request>] {
-                    path: "path/to/file.pdf".to_string(),
-                    expiration: Duration::from_secs(3600),
-                    options: None,
-                }
-            }
-        }
-    };
-}
-
-presign_request!(Read);
-presign_request!(Stat);
-// presign_request!(Write);
-// presign_request!(Delete);
-
 pub struct ServiceImpl {
     operator: Operator,
 }
@@ -93,57 +35,80 @@ impl ServiceImpl {
     pub fn new(operator: Operator) -> Self {
         Self { operator }
     }
+}
 
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(example = example_list_request())]
+pub struct ListRequest {
+    /// Object path.
+    pub path: String,
+    #[serde(flatten)]
+    common: service::CommonListRequest,
+}
+
+fn example_list_request() -> ListRequest {
+    ListRequest {
+        path: "path/to/file.pdf".to_string(),
+        common: service::CommonListRequest { options: None },
+    }
+}
+
+impl ServiceImpl {
     async fn _list(&self, request: ListRequest) -> Result<ListResponse, Error> {
-        let lister;
-
-        if let Some(options) = request.options {
-            lister = self
-                .operator
-                .lister_options(request.path.as_str(), options)
-                .await?;
-        } else {
-            lister = self.operator.lister(request.path.as_str()).await?;
-        }
-
-        let entries: Vec<Entry> = lister
-            .map(|entry| entry.map(|e| e.into()))
-            .try_collect()
-            .await?;
-
-        Ok(ListResponse { entries })
+        service::list(&self.operator, request.path.as_str(), request.common).await
     }
+}
 
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(example = example_presign_read_request())]
+pub struct PresignReadRequest {
+    /// Object path.
+    pub path: String,
+    #[serde(flatten)]
+    common: service::PresignRequest<ReadOptions>,
+}
+
+fn example_presign_read_request() -> PresignReadRequest {
+    PresignReadRequest {
+        path: "path/to/file.pdf".to_string(),
+        common: service::PresignRequest::<ReadOptions> {
+            expiration: Duration::from_secs(3600),
+            options: None,
+        },
+    }
+}
+
+impl ServiceImpl {
     async fn _presign_read(&self, request: PresignReadRequest) -> Result<PresignResponse, Error> {
-        if let Some(options) = request.options {
-            Ok(self
-                .operator
-                .presign_read_options(request.path.as_str(), request.expiration, options.into())
-                .await?
-                .into())
-        } else {
-            Ok(self
-                .operator
-                .presign_read(request.path.as_str(), request.expiration)
-                .await?
-                .into())
-        }
+        presign_read(&self.operator, request.path.as_str(), request.common).await
     }
+}
 
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(example = example_presign_stat_request())]
+pub struct PresignStatRequest {
+    /// Object path.
+    pub path: String,
+    #[serde(flatten)]
+    common: service::PresignRequest<StatOptions>,
+}
+
+fn example_presign_stat_request() -> PresignStatRequest {
+    PresignStatRequest {
+        path: "path/to/file.pdf".to_string(),
+        common: service::PresignRequest::<StatOptions> {
+            expiration: Duration::from_secs(3600),
+            options: None,
+        },
+    }
+}
+
+impl ServiceImpl {
     async fn _presign_stat(&self, request: PresignStatRequest) -> Result<PresignResponse, Error> {
-        if let Some(options) = request.options {
-            Ok(self
-                .operator
-                .presign_stat_options(request.path.as_str(), request.expiration, options.into())
-                .await?
-                .into())
-        } else {
-            Ok(self
-                .operator
-                .presign_stat(request.path.as_str(), request.expiration)
-                .await?
-                .into())
-        }
+        presign_stat(&self.operator, request.path.as_str(), request.common).await
     }
 }
 
