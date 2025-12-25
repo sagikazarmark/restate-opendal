@@ -1911,7 +1911,7 @@ dependencies = [
 
 [[package]]
 name = "restate-opendal"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "content_disposition",
@@ -1931,7 +1931,7 @@ dependencies = [
 
 [[package]]
 name = "restate-opendal-bin"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "clap",
