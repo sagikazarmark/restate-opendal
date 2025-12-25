@@ -3,6 +3,18 @@ use std::collections::HashMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(example = example_list_response())]
+pub struct ListResponse {
+    /// Entries in the store.
+    pub entries: Vec<Entry>,
+}
+
+fn example_list_response() -> ListResponse {
+    ListResponse { entries: vec![] }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(example = example_presign_response())]
