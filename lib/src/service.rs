@@ -2,14 +2,41 @@ use std::{collections::HashMap, time::Duration};
 
 use futures::{StreamExt, TryStreamExt};
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use url::Url;
 
 use crate::error::Error;
 
+mod sealed {
+    use url::Url;
+
+    pub trait Sealed {
+        fn example() -> Self;
+    }
+
+    impl Sealed for Url {
+        fn example() -> Self {
+            Url::parse("https://example.com/path/to/file.pdf").unwrap()
+        }
+    }
+    impl Sealed for String {
+        fn example() -> Self {
+            "path/to/file.pdf".to_string()
+        }
+    }
+}
+
+pub trait LocationType: sealed::Sealed + Serialize + DeserializeOwned + JsonSchema {}
+
+impl LocationType for Url {}
+impl LocationType for String {}
+
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct CommonListRequest {
-    /// Options for the presigned URL.
+#[serde(bound(deserialize = "Location: LocationType"))]
+#[schemars(bound = "Location: LocationType", example = example_list_request::<Location>())]
+pub struct ListRequest<Location: LocationType> {
+    pub location: Location,
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -19,9 +46,10 @@ pub struct CommonListRequest {
     pub options: Option<opendal::options::ListOptions>,
 }
 
-impl CommonListRequest {
-    pub(crate) fn example() -> Self {
-        Self { options: None }
+pub(crate) fn example_list_request<Location: LocationType>() -> ListRequest<Location> {
+    ListRequest {
+        location: Location::example(),
+        options: None,
     }
 }
 
@@ -37,10 +65,10 @@ fn example_list_response() -> ListResponse {
     ListResponse { entries: vec![] }
 }
 
-pub(crate) async fn list(
+pub(crate) async fn list<_L: LocationType>(
     operator: &opendal::Operator,
     path: &str,
-    request: CommonListRequest,
+    request: ListRequest<_L>,
 ) -> Result<ListResponse, Error> {
     let lister;
 
@@ -56,6 +84,29 @@ pub(crate) async fn list(
         .await?;
 
     Ok(ListResponse { entries })
+}
+
+#[derive(Default, Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[serde(bound(deserialize = "Location: LocationType"))]
+#[schemars(bound = "Location: LocationType", example = example_presign_request::<Location>())]
+pub struct PresignRequest<Location: LocationType, Options: DeserializeOwned + JsonSchema> {
+    pub location: Location,
+    /// Expiration of the presigned URL.
+    #[serde(with = "humantime_serde")]
+    #[schemars(with = "String")]
+    pub expiration: Duration,
+    /// Options for the presigned URL.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub options: Option<Options>,
+}
+
+pub(crate) fn example_presign_request<Location: LocationType>() -> PresignRequest<Location, ()> {
+    PresignRequest {
+        location: Location::example(),
+        expiration: Duration::from_secs(3600),
+        options: None,
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
@@ -94,31 +145,10 @@ impl From<opendal::raw::PresignedRequest> for PresignResponse {
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct PresignRequest<O> {
-    /// Expiration of the presigned URL.
-    #[serde(with = "humantime_serde")]
-    #[schemars(with = "String")]
-    pub expiration: Duration,
-    /// Options for the presigned URL.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub options: Option<O>,
-}
-
-impl<O> PresignRequest<O> {
-    pub(crate) fn example() -> Self {
-        Self {
-            expiration: Duration::from_secs(3600),
-            options: None,
-        }
-    }
-}
-
-pub(crate) async fn presign_read(
+pub(crate) async fn presign_read<_L: LocationType>(
     operator: &opendal::Operator,
     path: &str,
-    request: PresignRequest<ReadOptions>,
+    request: PresignRequest<_L, ReadOptions>,
 ) -> Result<PresignResponse, Error> {
     let presigned;
 
@@ -133,10 +163,10 @@ pub(crate) async fn presign_read(
     Ok(presigned.into())
 }
 
-pub(crate) async fn presign_stat(
+pub(crate) async fn presign_stat<_L: LocationType>(
     operator: &opendal::Operator,
     path: &str,
-    request: PresignRequest<StatOptions>,
+    request: PresignRequest<_L, StatOptions>,
 ) -> Result<PresignResponse, Error> {
     let presigned;
 

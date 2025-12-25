@@ -1,14 +1,43 @@
 use opendal::Operator;
 use restate_sdk::prelude::*;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 
-use crate::{error::Error, service, service::*};
+pub use crate::service::*;
+use crate::{error::Error, service};
+
+pub type Location = String;
+
+pub struct ServiceImpl {
+    operator: Operator,
+}
+
+impl ServiceImpl {
+    pub fn new(operator: Operator) -> Self {
+        Self { operator }
+    }
+}
+
+macro_rules! handler_impl {
+    ($name:ident, $response:ty) => {
+        paste::paste! {
+            impl ServiceImpl {
+                async fn [<_ $name:snake>](&self, request: [<$name:camel Request>]) -> Result<$response, Error> {
+                    service::$name(&self.operator, request.location.clone().as_str(), request).await
+                }
+            }
+        }
+    };
+
+    ($name:ident) => {
+        paste::paste! {
+            handler_impl!($name, [<$name:camel Response>]);
+        }
+    };
+}
 
 #[restate_sdk::service]
 #[name = "OpenDAL"]
 pub trait Service {
-    /// List entries in a given path.
+    /// List entries in a given location.
     async fn list(request: Json<ListRequest>) -> HandlerResult<Json<ListResponse>>;
 
     /// Presign an operation for read.
@@ -24,65 +53,16 @@ pub trait Service {
     ) -> HandlerResult<Json<PresignResponse>>;
 }
 
-pub struct ServiceImpl {
-    operator: Operator,
-}
+pub type ListRequest = service::ListRequest<Location>;
+pub type PresignReadRequest = service::PresignRequest<Location, ReadOptions>;
+pub type PresignStatRequest = service::PresignRequest<Location, StatOptions>;
 
-impl ServiceImpl {
-    pub fn new(operator: Operator) -> Self {
-        Self { operator }
-    }
-}
-
-macro_rules! handler_impl {
-    ($name:ident, $common:ty, $response:ty) => {
-        paste::paste! {
-            #[derive(Debug, Deserialize, Serialize, JsonSchema)]
-            #[serde(rename_all = "camelCase")]
-            #[schemars(example = [<example_ $name:snake _request>]())]
-            pub struct [<$name:camel Request>] {
-                /// Object path.
-                pub path: String,
-                #[serde(flatten)]
-                common: $common,
-            }
-
-            fn [<example_ $name:snake _request>]() -> [<$name:camel Request>] {
-                [<$name:camel Request>] {
-                    path: "path/to/file.pdf".to_string(),
-                    common: $common::example(),
-                }
-            }
-
-            impl ServiceImpl {
-                async fn [<_ $name:snake>](&self, request: [<$name:camel Request>]) -> Result<$response, Error> {
-                    service::$name(&self.operator, request.path.as_str(), request.common).await
-                }
-            }
-        }
-    };
-
-    ($name:ident, $common:ty) => {
-        paste::paste! {
-            handler_impl!($name, $common, [<$name:camel Response>]);
-        }
-    };
-}
-
-handler_impl!(list, service::CommonListRequest);
-handler_impl!(
-    presign_read,
-    service::PresignRequest::<ReadOptions>,
-    service::PresignResponse
-);
-handler_impl!(
-    presign_stat,
-    service::PresignRequest::<StatOptions>,
-    service::PresignResponse
-);
+handler_impl!(list);
+handler_impl!(presign_read, PresignResponse);
+handler_impl!(presign_stat, PresignResponse);
 
 impl Service for ServiceImpl {
-    /// List entries in a given path.
+    /// List entries in a given location.
     async fn list(
         &self,
         ctx: Context<'_>,
