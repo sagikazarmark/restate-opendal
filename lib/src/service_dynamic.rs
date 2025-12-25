@@ -1,6 +1,7 @@
 use std::{convert::TryFrom, time::Duration};
 
 use anyhow::Result;
+use futures::{StreamExt, TryStreamExt};
 use restate_sdk::prelude::*;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -11,6 +12,9 @@ use crate::{OperatorFactory, error::Error, service::*};
 #[restate_sdk::service]
 #[name = "OpenDAL"]
 pub trait Service {
+    /// List entries in a given path.
+    async fn list(request: Json<ListRequest>) -> HandlerResult<Json<ListResponse>>;
+
     /// Presign an operation for read.
     #[name = "presignRead"]
     async fn presign_read(
@@ -53,6 +57,41 @@ macro_rules! presign_request {
     };
 }
 
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(example = example_list_request())]
+pub struct ListRequest {
+    /// Object URI.
+    pub uri: Url,
+    /// Options for the presigned URL.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "option_list_options"
+    )]
+    #[schemars(with = "Option<ListOptionsDef>")]
+    pub options: Option<opendal::options::ListOptions>,
+}
+
+fn example_list_request() -> ListRequest {
+    ListRequest {
+        uri: Url::parse("s3://bucket").unwrap(),
+        options: None,
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(example = example_list_response())]
+pub struct ListResponse {
+    /// Entries in the store.
+    pub entries: Vec<Entry>,
+}
+
+fn example_list_response() -> ListResponse {
+    ListResponse { entries: vec![] }
+}
+
 presign_request!(Read);
 presign_request!(Stat);
 // presign_request!(Write);
@@ -65,6 +104,27 @@ pub struct ServiceImpl {
 impl ServiceImpl {
     pub fn new(factory: OperatorFactory) -> Self {
         Self { factory }
+    }
+
+    async fn _list(&self, request: ListRequest) -> Result<ListResponse, Error> {
+        let (uri, path) = parse_uri(request.uri);
+
+        let operator = self.factory.from_uri(uri.as_str())?;
+
+        let lister;
+
+        if let Some(options) = request.options {
+            lister = operator.lister_options(path.as_str(), options).await?;
+        } else {
+            lister = operator.lister(path.as_str()).await?;
+        }
+
+        let entries: Vec<Entry> = lister
+            .map(|entry| entry.map(|e| e.into()))
+            .try_collect()
+            .await?;
+
+        Ok(ListResponse { entries })
     }
 
     async fn _presign_read(&self, request: PresignReadRequest) -> Result<PresignResponse, Error> {
@@ -105,6 +165,17 @@ impl ServiceImpl {
 }
 
 impl Service for ServiceImpl {
+    /// List entries in a given path.
+    async fn list(
+        &self,
+        ctx: Context<'_>,
+        request: Json<ListRequest>,
+    ) -> HandlerResult<Json<ListResponse>> {
+        Ok(ctx
+            .run(async || Ok(self._list(request.into_inner()).await.map(Json)?))
+            .await?)
+    }
+
     /// Presign an operation for read.
     async fn presign_read(
         &self,

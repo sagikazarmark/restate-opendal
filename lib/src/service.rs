@@ -41,6 +41,158 @@ impl From<opendal::raw::PresignedRequest> for PresignResponse {
 
 #[derive(Default, Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
+pub struct Entry {
+    pub path: String,
+    pub metadata: Metadata,
+}
+
+impl Into<Entry> for opendal::Entry {
+    fn into(self) -> Entry {
+        Entry {
+            path: self.path().to_string(),
+            metadata: self.metadata().clone().into(),
+        }
+    }
+}
+
+#[derive(Default, Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Metadata {
+    pub mode: EntryMode,
+
+    pub is_current: Option<bool>,
+    pub is_deleted: bool,
+
+    pub cache_control: Option<String>,
+    pub content_disposition: Option<String>,
+    pub content_length: Option<u64>,
+    pub content_md5: Option<String>,
+    // pub content_range: Option<BytesContentRange>,
+    pub content_type: Option<String>,
+    pub content_encoding: Option<String>,
+    pub etag: Option<String>,
+    pub last_modified: Option<jiff::Timestamp>,
+    pub version: Option<String>,
+
+    pub user_metadata: Option<HashMap<String, String>>,
+}
+
+impl Into<Metadata> for opendal::Metadata {
+    fn into(self) -> Metadata {
+        Metadata {
+            mode: self.mode().into(),
+            is_current: self.is_current(),
+            is_deleted: self.is_deleted(),
+            cache_control: self.cache_control().map(|s| s.to_string()),
+            content_disposition: self.content_disposition().map(|s| s.to_string()),
+            content_length: Some(self.content_length()),
+            content_md5: self.content_md5().map(|s| s.to_string()),
+            content_type: self.content_type().map(|s| s.to_string()),
+            content_encoding: self.content_encoding().map(|s| s.to_string()),
+            etag: self.etag().map(|s| s.to_string()),
+            last_modified: self.last_modified().map(|t| t.into_inner()),
+            version: self.version().map(|s| s.to_string()),
+            user_metadata: self.user_metadata().map(|m| m.clone()),
+        }
+    }
+}
+
+#[derive(Default, Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum EntryMode {
+    /// FILE means the path has data to read.
+    File,
+    /// DIR means the path can be listed.
+    Dir,
+    /// Unknown means we don't know what we can do on this path.
+    #[default]
+    Unknown,
+}
+
+impl Into<EntryMode> for opendal::EntryMode {
+    fn into(self) -> EntryMode {
+        match self {
+            opendal::EntryMode::FILE => EntryMode::File,
+            opendal::EntryMode::DIR => EntryMode::Dir,
+            opendal::EntryMode::Unknown => EntryMode::Unknown,
+        }
+    }
+}
+
+#[derive(Default, Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", remote = "opendal::options::ListOptions")]
+pub struct ListOptionsDef {
+    /// The limit passed to underlying service to specify the max results
+    /// that could return per-request.
+    ///
+    /// Users could use this to control the memory usage of list operation.
+    #[serde(default)]
+    pub limit: Option<usize>,
+    /// The start_after passes to underlying service to specify the specified key
+    /// to start listing from.
+    #[serde(default)]
+    pub start_after: Option<String>,
+    /// The recursive is used to control whether the list operation is recursive.
+    ///
+    /// - If `false`, list operation will only list the entries under the given path.
+    /// - If `true`, list operation will list all entries that starts with given path.
+    ///
+    /// Default to `false`.
+    #[serde(default)]
+    pub recursive: bool,
+    /// The version is used to control whether the object versions should be returned.
+    ///
+    /// - If `false`, list operation will not return with object versions
+    /// - If `true`, list operation will return with object versions if object versioning is supported
+    ///   by the underlying service
+    ///
+    /// Default to `false`
+    #[serde(default)]
+    pub versions: bool,
+    /// The deleted is used to control whether the deleted objects should be returned.
+    ///
+    /// - If `false`, list operation will not return with deleted objects
+    /// - If `true`, list operation will return with deleted objects if object versioning is supported
+    ///   by the underlying service
+    ///
+    /// Default to `false`
+    #[serde(default)]
+    pub deleted: bool,
+}
+
+pub(crate) mod option_list_options {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    pub fn serialize<S>(
+        value: &Option<opendal::options::ListOptions>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        #[derive(Serialize)]
+        struct Helper<'a>(
+            #[serde(with = "super::ListOptionsDef")] &'a opendal::options::ListOptions,
+        );
+
+        value.as_ref().map(Helper).serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<Option<opendal::options::ListOptions>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct Helper(#[serde(with = "super::ListOptionsDef")] opendal::options::ListOptions);
+
+        Option::<Helper>::deserialize(deserializer).map(|opt| opt.map(|Helper(inner)| inner))
+    }
+}
+
+#[derive(Default, Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct BytesRange {
     /// Offset of the range.
     offset: u64,
