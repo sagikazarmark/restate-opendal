@@ -18,6 +18,17 @@ pub trait Service {
     async fn copy(request: Json<CopyRequest>) -> HandlerResult<()>;
 }
 
+#[derive(Default)]
+pub struct ServiceImpl {
+    factory: OperatorFactory,
+}
+
+impl ServiceImpl {
+    pub fn new(factory: OperatorFactory) -> Self {
+        Self { factory }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(example = example_copy_request())]
@@ -36,16 +47,7 @@ fn example_copy_request() -> CopyRequest {
     }
 }
 
-#[derive(Default)]
-pub struct ServiceImpl {
-    factory: OperatorFactory,
-}
-
 impl ServiceImpl {
-    pub fn new(factory: OperatorFactory) -> Self {
-        Self { factory }
-    }
-
     async fn _copy(&self, request: CopyRequest) -> Result<(), crate::error::Error> {
         let (src_path, src_op) = self.parse_location(request.source)?;
         let (dst_path, dst_op) = self.parse_location(request.destination)?;

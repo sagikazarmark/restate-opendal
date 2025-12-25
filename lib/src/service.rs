@@ -1,7 +1,56 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
+use futures::{StreamExt, TryStreamExt};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+use crate::error::Error;
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CommonListRequest {
+    /// Options for the presigned URL.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "option_list_options"
+    )]
+    #[schemars(with = "Option<ListOptionsDef>")]
+    pub options: Option<opendal::options::ListOptions>,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(example = example_list_response())]
+pub struct ListResponse {
+    /// Entries in the store.
+    pub entries: Vec<Entry>,
+}
+
+fn example_list_response() -> ListResponse {
+    ListResponse { entries: vec![] }
+}
+
+pub(crate) async fn list(
+    operator: &opendal::Operator,
+    path: &str,
+    request: CommonListRequest,
+) -> Result<ListResponse, Error> {
+    let lister;
+
+    if let Some(options) = request.options {
+        lister = operator.lister_options(path, options).await?;
+    } else {
+        lister = operator.lister(path).await?;
+    }
+
+    let entries: Vec<Entry> = lister
+        .map(|entry| entry.map(|e| e.into()))
+        .try_collect()
+        .await?;
+
+    Ok(ListResponse { entries })
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
@@ -37,6 +86,54 @@ impl From<opendal::raw::PresignedRequest> for PresignResponse {
                 .collect(),
         }
     }
+}
+
+#[derive(Default, Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PresignRequest<O> {
+    /// Expiration of the presigned URL.
+    #[serde(with = "humantime_serde")]
+    #[schemars(with = "String")]
+    pub expiration: Duration,
+    /// Options for the presigned URL.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub options: Option<O>,
+}
+
+pub(crate) async fn presign_read(
+    operator: &opendal::Operator,
+    path: &str,
+    request: PresignRequest<ReadOptions>,
+) -> Result<PresignResponse, Error> {
+    let presigned;
+
+    if let Some(options) = request.options {
+        presigned = operator
+            .presign_read_options(path, request.expiration, options.into())
+            .await?;
+    } else {
+        presigned = operator.presign_read(path, request.expiration).await?;
+    }
+
+    Ok(presigned.into())
+}
+
+pub(crate) async fn presign_stat(
+    operator: &opendal::Operator,
+    path: &str,
+    request: PresignRequest<StatOptions>,
+) -> Result<PresignResponse, Error> {
+    let presigned;
+
+    if let Some(options) = request.options {
+        presigned = operator
+            .presign_stat_options(path, request.expiration, options.into())
+            .await?;
+    } else {
+        presigned = operator.presign_stat(path, request.expiration).await?;
+    }
+
+    Ok(presigned.into())
 }
 
 #[derive(Default, Debug, Clone, Deserialize, Serialize, JsonSchema)]

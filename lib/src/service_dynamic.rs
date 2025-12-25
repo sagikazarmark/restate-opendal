@@ -1,13 +1,12 @@
 use std::{convert::TryFrom, time::Duration};
 
 use anyhow::Result;
-use futures::{StreamExt, TryStreamExt};
 use restate_sdk::prelude::*;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use crate::{OperatorFactory, error::Error, service::*};
+use crate::{OperatorFactory, error::Error, service, service::*};
 
 #[restate_sdk::service]
 #[name = "OpenDAL"]
@@ -28,75 +27,6 @@ pub trait Service {
     ) -> HandlerResult<Json<PresignResponse>>;
 }
 
-macro_rules! presign_request {
-    ($name:ident) => {
-        paste::paste! {
-            #[derive(Debug, Deserialize, Serialize, JsonSchema)]
-            #[serde(rename_all = "camelCase")]
-            #[schemars(example = [<example_presign_ $name:snake _request>]())]
-            pub struct [<Presign $name Request>] {
-                /// Object URI.
-                pub uri: Url,
-                /// Expiration of the presigned URL.
-                #[serde(with = "humantime_serde")]
-                #[schemars(with = "String")]
-                pub expiration: Duration,
-                /// Options for the presigned URL.
-                #[serde(skip_serializing_if = "Option::is_none")]
-                pub options: Option<[<$name Options>]>,
-            }
-
-            fn [<example_presign_ $name:snake _request>]() -> [<Presign $name Request>] {
-                [<Presign $name Request>] {
-                    uri: Url::parse("https://example.com/path/to/file.pdf").unwrap(),
-                    expiration: Duration::from_secs(3600),
-                    options: None,
-                }
-            }
-        }
-    };
-}
-
-#[derive(Debug, Deserialize, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-#[schemars(example = example_list_request())]
-pub struct ListRequest {
-    /// Object URI.
-    pub uri: Url,
-    /// Options for the presigned URL.
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        with = "option_list_options"
-    )]
-    #[schemars(with = "Option<ListOptionsDef>")]
-    pub options: Option<opendal::options::ListOptions>,
-}
-
-fn example_list_request() -> ListRequest {
-    ListRequest {
-        uri: Url::parse("s3://bucket").unwrap(),
-        options: None,
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-#[schemars(example = example_list_response())]
-pub struct ListResponse {
-    /// Entries in the store.
-    pub entries: Vec<Entry>,
-}
-
-fn example_list_response() -> ListResponse {
-    ListResponse { entries: vec![] }
-}
-
-presign_request!(Read);
-presign_request!(Stat);
-// presign_request!(Write);
-// presign_request!(Delete);
-
 pub struct ServiceImpl {
     factory: OperatorFactory,
 }
@@ -105,62 +35,92 @@ impl ServiceImpl {
     pub fn new(factory: OperatorFactory) -> Self {
         Self { factory }
     }
+}
 
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(example = example_list_request())]
+pub struct ListRequest {
+    /// Object URI.
+    pub uri: Url,
+    #[serde(flatten)]
+    common: service::CommonListRequest,
+}
+
+fn example_list_request() -> ListRequest {
+    ListRequest {
+        uri: Url::parse("s3://bucket").unwrap(),
+        common: service::CommonListRequest { options: None },
+    }
+}
+
+impl ServiceImpl {
     async fn _list(&self, request: ListRequest) -> Result<ListResponse, Error> {
         let (uri, path) = parse_uri(request.uri);
 
         let operator = self.factory.from_uri(uri.as_str())?;
 
-        let lister;
-
-        if let Some(options) = request.options {
-            lister = operator.lister_options(path.as_str(), options).await?;
-        } else {
-            lister = operator.lister(path.as_str()).await?;
-        }
-
-        let entries: Vec<Entry> = lister
-            .map(|entry| entry.map(|e| e.into()))
-            .try_collect()
-            .await?;
-
-        Ok(ListResponse { entries })
+        service::list(&operator, path.as_str(), request.common).await
     }
+}
 
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(example = example_presign_read_request())]
+pub struct PresignReadRequest {
+    /// Object URI.
+    pub uri: Url,
+    #[serde(flatten)]
+    common: service::PresignRequest<ReadOptions>,
+}
+
+fn example_presign_read_request() -> PresignReadRequest {
+    PresignReadRequest {
+        uri: Url::parse("https://example.com/path/to/file.pdf").unwrap(),
+        common: service::PresignRequest::<ReadOptions> {
+            expiration: Duration::from_secs(3600),
+            options: None,
+        },
+    }
+}
+
+impl ServiceImpl {
     async fn _presign_read(&self, request: PresignReadRequest) -> Result<PresignResponse, Error> {
         let (uri, path) = parse_uri(request.uri);
 
         let operator = self.factory.from_uri(uri.as_str())?;
 
-        if let Some(options) = request.options {
-            Ok(operator
-                .presign_read_options(path.as_str(), request.expiration, options.into())
-                .await?
-                .into())
-        } else {
-            Ok(operator
-                .presign_read(path.as_str(), request.expiration)
-                .await?
-                .into())
-        }
+        presign_read(&operator, path.as_str(), request.common).await
     }
+}
 
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(example = example_presign_stat_request())]
+pub struct PresignStatRequest {
+    /// Object URI.
+    pub uri: Url,
+    #[serde(flatten)]
+    common: service::PresignRequest<StatOptions>,
+}
+
+fn example_presign_stat_request() -> PresignStatRequest {
+    PresignStatRequest {
+        uri: Url::parse("https://example.com/path/to/file.pdf").unwrap(),
+        common: service::PresignRequest::<StatOptions> {
+            expiration: Duration::from_secs(3600),
+            options: None,
+        },
+    }
+}
+
+impl ServiceImpl {
     async fn _presign_stat(&self, request: PresignStatRequest) -> Result<PresignResponse, Error> {
         let (uri, path) = parse_uri(request.uri);
 
         let operator = self.factory.from_uri(uri.as_str())?;
 
-        if let Some(options) = request.options {
-            Ok(operator
-                .presign_stat_options(path.as_str(), request.expiration, options.into())
-                .await?
-                .into())
-        } else {
-            Ok(operator
-                .presign_stat(path.as_str(), request.expiration)
-                .await?
-                .into())
-        }
+        presign_stat(&operator, path.as_str(), request.common).await
     }
 }
 
