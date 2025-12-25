@@ -46,11 +46,11 @@ pub struct Entry {
     pub metadata: Metadata,
 }
 
-impl Into<Entry> for opendal::Entry {
-    fn into(self) -> Entry {
+impl From<opendal::Entry> for Entry {
+    fn from(val: opendal::Entry) -> Self {
         Entry {
-            path: self.path().to_string(),
-            metadata: self.metadata().clone().into(),
+            path: val.path().to_string(),
+            metadata: val.metadata().clone().into(),
         }
     }
 }
@@ -77,22 +77,22 @@ pub struct Metadata {
     pub user_metadata: Option<HashMap<String, String>>,
 }
 
-impl Into<Metadata> for opendal::Metadata {
-    fn into(self) -> Metadata {
+impl From<opendal::Metadata> for Metadata {
+    fn from(val: opendal::Metadata) -> Self {
         Metadata {
-            mode: self.mode().into(),
-            is_current: self.is_current(),
-            is_deleted: self.is_deleted(),
-            cache_control: self.cache_control().map(|s| s.to_string()),
-            content_disposition: self.content_disposition().map(|s| s.to_string()),
-            content_length: Some(self.content_length()),
-            content_md5: self.content_md5().map(|s| s.to_string()),
-            content_type: self.content_type().map(|s| s.to_string()),
-            content_encoding: self.content_encoding().map(|s| s.to_string()),
-            etag: self.etag().map(|s| s.to_string()),
-            last_modified: self.last_modified().map(|t| t.into_inner()),
-            version: self.version().map(|s| s.to_string()),
-            user_metadata: self.user_metadata().map(|m| m.clone()),
+            mode: val.mode().into(),
+            is_current: val.is_current(),
+            is_deleted: val.is_deleted(),
+            cache_control: val.cache_control().map(|s| s.to_string()),
+            content_disposition: val.content_disposition().map(|s| s.to_string()),
+            content_length: Some(val.content_length()),
+            content_md5: val.content_md5().map(|s| s.to_string()),
+            content_type: val.content_type().map(|s| s.to_string()),
+            content_encoding: val.content_encoding().map(|s| s.to_string()),
+            etag: val.etag().map(|s| s.to_string()),
+            last_modified: val.last_modified().map(|t| t.into_inner()),
+            version: val.version().map(|s| s.to_string()),
+            user_metadata: val.user_metadata().cloned(),
         }
     }
 }
@@ -109,9 +109,9 @@ pub enum EntryMode {
     Unknown,
 }
 
-impl Into<EntryMode> for opendal::EntryMode {
-    fn into(self) -> EntryMode {
-        match self {
+impl From<opendal::EntryMode> for EntryMode {
+    fn from(val: opendal::EntryMode) -> Self {
+        match val {
             opendal::EntryMode::FILE => EntryMode::File,
             opendal::EntryMode::DIR => EntryMode::Dir,
             opendal::EntryMode::Unknown => EntryMode::Unknown,
