@@ -19,6 +19,12 @@ pub struct CommonListRequest {
     pub options: Option<opendal::options::ListOptions>,
 }
 
+impl CommonListRequest {
+    pub(crate) fn example() -> Self {
+        Self { options: None }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(example = example_list_response())]
@@ -98,6 +104,15 @@ pub struct PresignRequest<O> {
     /// Options for the presigned URL.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub options: Option<O>,
+}
+
+impl<O> PresignRequest<O> {
+    pub(crate) fn example() -> Self {
+        Self {
+            expiration: Duration::from_secs(3600),
+            options: None,
+        }
+    }
 }
 
 pub(crate) async fn presign_read(

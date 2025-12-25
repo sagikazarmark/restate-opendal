@@ -1,6 +1,3 @@
-use std::{convert::TryFrom, time::Duration};
-
-use anyhow::Result;
 use opendal::Operator;
 use restate_sdk::prelude::*;
 use schemars::JsonSchema;
@@ -37,80 +34,52 @@ impl ServiceImpl {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-#[schemars(example = example_list_request())]
-pub struct ListRequest {
-    /// Object path.
-    pub path: String,
-    #[serde(flatten)]
-    common: service::CommonListRequest,
+macro_rules! handler_impl {
+    ($name:ident, $common:ty, $response:ty) => {
+        paste::paste! {
+            #[derive(Debug, Deserialize, Serialize, JsonSchema)]
+            #[serde(rename_all = "camelCase")]
+            #[schemars(example = [<example_ $name:snake _request>]())]
+            pub struct [<$name:camel Request>] {
+                /// Object path.
+                pub path: String,
+                #[serde(flatten)]
+                common: $common,
+            }
+
+            fn [<example_ $name:snake _request>]() -> [<$name:camel Request>] {
+                [<$name:camel Request>] {
+                    path: "path/to/file.pdf".to_string(),
+                    common: $common::example(),
+                }
+            }
+
+            impl ServiceImpl {
+                async fn [<_ $name:snake>](&self, request: [<$name:camel Request>]) -> Result<$response, Error> {
+                    service::$name(&self.operator, request.path.as_str(), request.common).await
+                }
+            }
+        }
+    };
+
+    ($name:ident, $common:ty) => {
+        paste::paste! {
+            handler_impl!($name, $common, [<$name:camel Response>]);
+        }
+    };
 }
 
-fn example_list_request() -> ListRequest {
-    ListRequest {
-        path: "path/to/file.pdf".to_string(),
-        common: service::CommonListRequest { options: None },
-    }
-}
-
-impl ServiceImpl {
-    async fn _list(&self, request: ListRequest) -> Result<ListResponse, Error> {
-        service::list(&self.operator, request.path.as_str(), request.common).await
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-#[schemars(example = example_presign_read_request())]
-pub struct PresignReadRequest {
-    /// Object path.
-    pub path: String,
-    #[serde(flatten)]
-    common: service::PresignRequest<ReadOptions>,
-}
-
-fn example_presign_read_request() -> PresignReadRequest {
-    PresignReadRequest {
-        path: "path/to/file.pdf".to_string(),
-        common: service::PresignRequest::<ReadOptions> {
-            expiration: Duration::from_secs(3600),
-            options: None,
-        },
-    }
-}
-
-impl ServiceImpl {
-    async fn _presign_read(&self, request: PresignReadRequest) -> Result<PresignResponse, Error> {
-        presign_read(&self.operator, request.path.as_str(), request.common).await
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-#[schemars(example = example_presign_stat_request())]
-pub struct PresignStatRequest {
-    /// Object path.
-    pub path: String,
-    #[serde(flatten)]
-    common: service::PresignRequest<StatOptions>,
-}
-
-fn example_presign_stat_request() -> PresignStatRequest {
-    PresignStatRequest {
-        path: "path/to/file.pdf".to_string(),
-        common: service::PresignRequest::<StatOptions> {
-            expiration: Duration::from_secs(3600),
-            options: None,
-        },
-    }
-}
-
-impl ServiceImpl {
-    async fn _presign_stat(&self, request: PresignStatRequest) -> Result<PresignResponse, Error> {
-        presign_stat(&self.operator, request.path.as_str(), request.common).await
-    }
-}
+handler_impl!(list, service::CommonListRequest);
+handler_impl!(
+    presign_read,
+    service::PresignRequest::<ReadOptions>,
+    service::PresignResponse
+);
+handler_impl!(
+    presign_stat,
+    service::PresignRequest::<StatOptions>,
+    service::PresignResponse
+);
 
 impl Service for ServiceImpl {
     /// List entries in a given path.

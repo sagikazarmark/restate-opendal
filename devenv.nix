@@ -6,6 +6,7 @@
   packages = with pkgs; [
     cargo-release
     cargo-watch
+    cargo-expand
   ];
 
   languages.rust = {
