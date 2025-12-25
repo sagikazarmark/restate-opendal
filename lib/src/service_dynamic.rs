@@ -1,6 +1,3 @@
-use std::{convert::TryFrom, time::Duration};
-
-use anyhow::Result;
 use restate_sdk::prelude::*;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -37,92 +34,56 @@ impl ServiceImpl {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-#[schemars(example = example_list_request())]
-pub struct ListRequest {
-    /// Object URI.
-    pub uri: Url,
-    #[serde(flatten)]
-    common: service::CommonListRequest,
+macro_rules! handler_impl {
+    ($name:ident, $common:ty, $response:ty) => {
+        paste::paste! {
+            #[derive(Debug, Deserialize, Serialize, JsonSchema)]
+            #[serde(rename_all = "camelCase")]
+            #[schemars(example = [<example_ $name:snake _request>]())]
+            pub struct [<$name:camel Request>] {
+                /// Object URI.
+                pub uri: Url,
+                #[serde(flatten)]
+                common: $common,
+            }
+
+            fn [<example_ $name:snake _request>]() -> [<$name:camel Request>] {
+                [<$name:camel Request>] {
+                    uri: Url::parse("https://example.com/path/to/file.pdf").unwrap(),
+                    common: $common::example(),
+                }
+            }
+
+            impl ServiceImpl {
+                async fn [<_ $name:snake>](&self, request: [<$name:camel Request>]) -> Result<$response, Error> {
+                    let (uri, path) = parse_uri(request.uri);
+
+                    let operator = self.factory.from_uri(uri.as_str())?;
+
+                    service::$name(&operator, path.as_str(), request.common).await
+                }
+            }
+        }
+    };
+
+    ($name:ident, $common:ty) => {
+        paste::paste! {
+            handler_impl!($name, $common, [<$name:camel Response>]);
+        }
+    };
 }
 
-fn example_list_request() -> ListRequest {
-    ListRequest {
-        uri: Url::parse("s3://bucket").unwrap(),
-        common: service::CommonListRequest { options: None },
-    }
-}
-
-impl ServiceImpl {
-    async fn _list(&self, request: ListRequest) -> Result<ListResponse, Error> {
-        let (uri, path) = parse_uri(request.uri);
-
-        let operator = self.factory.from_uri(uri.as_str())?;
-
-        service::list(&operator, path.as_str(), request.common).await
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-#[schemars(example = example_presign_read_request())]
-pub struct PresignReadRequest {
-    /// Object URI.
-    pub uri: Url,
-    #[serde(flatten)]
-    common: service::PresignRequest<ReadOptions>,
-}
-
-fn example_presign_read_request() -> PresignReadRequest {
-    PresignReadRequest {
-        uri: Url::parse("https://example.com/path/to/file.pdf").unwrap(),
-        common: service::PresignRequest::<ReadOptions> {
-            expiration: Duration::from_secs(3600),
-            options: None,
-        },
-    }
-}
-
-impl ServiceImpl {
-    async fn _presign_read(&self, request: PresignReadRequest) -> Result<PresignResponse, Error> {
-        let (uri, path) = parse_uri(request.uri);
-
-        let operator = self.factory.from_uri(uri.as_str())?;
-
-        presign_read(&operator, path.as_str(), request.common).await
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-#[schemars(example = example_presign_stat_request())]
-pub struct PresignStatRequest {
-    /// Object URI.
-    pub uri: Url,
-    #[serde(flatten)]
-    common: service::PresignRequest<StatOptions>,
-}
-
-fn example_presign_stat_request() -> PresignStatRequest {
-    PresignStatRequest {
-        uri: Url::parse("https://example.com/path/to/file.pdf").unwrap(),
-        common: service::PresignRequest::<StatOptions> {
-            expiration: Duration::from_secs(3600),
-            options: None,
-        },
-    }
-}
-
-impl ServiceImpl {
-    async fn _presign_stat(&self, request: PresignStatRequest) -> Result<PresignResponse, Error> {
-        let (uri, path) = parse_uri(request.uri);
-
-        let operator = self.factory.from_uri(uri.as_str())?;
-
-        presign_stat(&operator, path.as_str(), request.common).await
-    }
-}
+handler_impl!(list, service::CommonListRequest);
+handler_impl!(
+    presign_read,
+    service::PresignRequest::<ReadOptions>,
+    service::PresignResponse
+);
+handler_impl!(
+    presign_stat,
+    service::PresignRequest::<StatOptions>,
+    service::PresignResponse
+);
 
 impl Service for ServiceImpl {
     /// List entries in a given path.
