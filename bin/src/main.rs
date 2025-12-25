@@ -1,4 +1,5 @@
 mod config;
+mod config_restate;
 
 use std::path::PathBuf;
 
