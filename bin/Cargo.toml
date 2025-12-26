@@ -28,6 +28,7 @@ opendal = { workspace = true, features = [
   "layers-mime-guess",
   "layers-tracing",
 ] }
+opendal-util = { workspace = true }
 restate-sdk = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true }

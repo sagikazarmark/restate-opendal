@@ -14,9 +14,12 @@ use opendal::{
     layers::{LoggingLayer, MimeGuessLayer, TracingLayer},
     services,
 };
+use opendal_util::{
+    ChainOperatorFactory, DefaultOperatorFactory, LambdaOperatorFactory, OperatorFactory,
+    ProfileOperatorFactory,
+};
 use restate_sdk::{endpoint::Endpoint, http_server::HttpServer};
 
-use restate_opendal::{LambdaOperatorFactory, OperatorFactory};
 use restate_opendal::{dynamic, dynamic::Service as _, scoped, scoped::Service as _};
 use restate_opendal::{extra, extra::Service as _};
 
@@ -109,16 +112,16 @@ impl Cli {
     }
 }
 
-fn create_factory(profiles: HashMap<String, HashMap<String, String>>) -> OperatorFactory {
-    OperatorFactory::Custom(Box::new(LambdaOperatorFactory::new(
-        OperatorFactory::Chain(vec![
-            OperatorFactory::Profiles(profiles),
-            OperatorFactory::Default,
-        ]),
+fn create_factory(profiles: HashMap<String, HashMap<String, String>>) -> impl OperatorFactory {
+    LambdaOperatorFactory::new(
+        ChainOperatorFactory::builder()
+            .then(ProfileOperatorFactory::new(profiles))
+            .then(DefaultOperatorFactory::new())
+            .build(),
         |o| {
             o.layer(LoggingLayer::default())
                 .layer(TracingLayer)
                 .layer(MimeGuessLayer::default())
         },
-    )))
+    )
 }

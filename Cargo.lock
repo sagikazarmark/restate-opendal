@@ -1400,6 +1400,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "opendal-util"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de1a806dcc03798ea9ca8ae5a4352df99862054776b1d6ed0687991f280ccab6"
+dependencies = [
+ "content_disposition",
+ "futures",
+ "opendal",
+ "restate-sdk",
+ "schemars 1.1.0",
+ "serde",
+ "typed-path",
+ "url",
+]
+
+[[package]]
 name = "ordered-multimap"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1938,6 +1954,7 @@ dependencies = [
  "humantime-serde",
  "jiff",
  "opendal",
+ "opendal-util",
  "paste",
  "restate-sdk",
  "schemars 1.1.0",
@@ -1956,6 +1973,7 @@ dependencies = [
  "figment",
  "humantime-serde",
  "opendal",
+ "opendal-util",
  "restate-opendal",
  "restate-sdk",
  "schemars 1.1.0",

@@ -16,6 +16,3 @@ pub mod extra {
 }
 
 mod error;
-
-mod factory;
-pub use factory::*;

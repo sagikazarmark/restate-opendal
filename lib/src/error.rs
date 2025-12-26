@@ -1,4 +1,4 @@
-use opendal::ErrorKind;
+use opendal_util::to_restate_error;
 use restate_sdk::errors::{HandlerError, TerminalError};
 
 #[derive(Debug)]
@@ -6,7 +6,7 @@ pub struct Error(HandlerError);
 
 impl From<opendal::Error> for Error {
     fn from(err: opendal::Error) -> Self {
-        Error(classify_opendal_error(err))
+        Error(to_restate_error(err))
     }
 }
 
@@ -14,7 +14,7 @@ impl From<anyhow::Error> for Error {
     fn from(err: anyhow::Error) -> Self {
         let msg = err.to_string();
         if let Ok(opendal_err) = err.downcast::<opendal::Error>() {
-            Error(classify_opendal_error(opendal_err))
+            Error(to_restate_error(opendal_err))
         } else {
             Error(HandlerError::from(msg))
         }
@@ -31,25 +31,6 @@ impl From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
         Error(err.into())
     }
-}
-
-fn classify_opendal_error(err: opendal::Error) -> HandlerError {
-    if err.is_permanent() {
-        let status_code = match err.kind() {
-            ErrorKind::Unsupported => 501,
-            ErrorKind::ConfigInvalid => 400,
-            ErrorKind::NotFound => 404,
-            ErrorKind::PermissionDenied => 403,
-            ErrorKind::IsADirectory => 422,
-            ErrorKind::NotADirectory => 422,
-            ErrorKind::AlreadyExists => 409,
-            _ => 500,
-        };
-
-        return TerminalError::new_with_code(status_code, err.to_string()).into();
-    }
-
-    err.into()
 }
 
 impl From<Error> for HandlerError {
