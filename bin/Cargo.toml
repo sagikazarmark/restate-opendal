@@ -25,6 +25,8 @@ opendal = { workspace = true, features = [
   "services-azblob",
   "services-gcs",
   "services-memory",
+  "layers-mime-guess",
+  "layers-tracing",
 ] }
 restate-sdk = { workspace = true }
 schemars = { workspace = true }

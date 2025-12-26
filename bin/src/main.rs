@@ -1,7 +1,7 @@
 mod config;
 mod config_restate;
 
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -9,7 +9,11 @@ use figment::{
     Figment,
     providers::{Env, Format, Json, Toml, Yaml},
 };
-use opendal::{DEFAULT_OPERATOR_REGISTRY, layers::LoggingLayer, services};
+use opendal::{
+    DEFAULT_OPERATOR_REGISTRY,
+    layers::{LoggingLayer, MimeGuessLayer, TracingLayer},
+    services,
+};
 use restate_sdk::{endpoint::Endpoint, http_server::HttpServer};
 
 use restate_opendal::{LambdaOperatorFactory, OperatorFactory};
@@ -33,13 +37,7 @@ async fn main() -> Result<()> {
     let mut endpoint = Endpoint::builder();
 
     {
-        let factory = OperatorFactory::Custom(Box::new(LambdaOperatorFactory::new(
-            OperatorFactory::Chain(vec![
-                OperatorFactory::Profiles(config.profiles.clone()),
-                OperatorFactory::Default,
-            ]),
-            |o| o.layer(LoggingLayer::default()),
-        )));
+        let factory = create_factory(config.profiles.clone());
 
         if let Some(store_url) = config.store.uri {
             let operator = factory.from_uri(store_url.as_str())?;
@@ -54,13 +52,7 @@ async fn main() -> Result<()> {
     }
 
     {
-        let factory = OperatorFactory::Custom(Box::new(LambdaOperatorFactory::new(
-            OperatorFactory::Chain(vec![
-                OperatorFactory::Profiles(config.profiles.clone()),
-                OperatorFactory::Default,
-            ]),
-            |o| o.layer(LoggingLayer::default()),
-        )));
+        let factory = create_factory(config.profiles.clone());
 
         endpoint = endpoint.bind(extra::ServiceImpl::new(factory).serve());
     }
@@ -115,4 +107,18 @@ impl Cli {
 
         figment.extract().context("Failed to parse configuration")
     }
+}
+
+fn create_factory(profiles: HashMap<String, HashMap<String, String>>) -> OperatorFactory {
+    OperatorFactory::Custom(Box::new(LambdaOperatorFactory::new(
+        OperatorFactory::Chain(vec![
+            OperatorFactory::Profiles(profiles),
+            OperatorFactory::Default,
+        ]),
+        |o| {
+            o.layer(LoggingLayer::default())
+                .layer(TracingLayer)
+                .layer(MimeGuessLayer::default())
+        },
+    )))
 }
