@@ -1,5 +1,5 @@
 use opendal::Operator;
-use opendal_util::OperatorFactory;
+use opendal_util::{Copier, CopyOptions, OperatorFactory};
 use restate_sdk::prelude::*;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -35,6 +35,8 @@ where
 pub struct CopyRequest {
     pub source: Url,
     pub destination: Url,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub options: Option<CopyOptions>,
 }
 
 fn example_copy_request() -> CopyRequest {
@@ -44,6 +46,7 @@ fn example_copy_request() -> CopyRequest {
         )
         .unwrap(),
         destination: Url::parse("s3://bucket/bunny.mov").unwrap(),
+        options: None,
     }
 }
 
@@ -55,7 +58,13 @@ where
         let (src_path, src_op) = self.parse_location(request.source)?;
         let (dst_path, dst_op) = self.parse_location(request.destination)?;
 
-        opendal_util::copy((src_op, src_path), (dst_op, dst_path)).await
+        let copier = Copier::new(src_op, dst_op);
+
+        if let Some(options) = request.options {
+            return copier.copy_options(src_path, dst_path, options).await;
+        }
+
+        copier.copy(src_path, dst_path).await
     }
 
     fn parse_location(&self, location: Url) -> opendal::Result<(String, Operator)> {
@@ -63,7 +72,7 @@ where
         let path = uri.path().to_string();
         uri.set_path("");
 
-        let op = self.factory.from_uri(uri.as_str())?;
+        let op = self.factory.load(uri.as_str())?;
 
         Ok((path, op))
     }

@@ -43,7 +43,7 @@ async fn main() -> Result<()> {
         let factory = create_factory(config.profiles.clone());
 
         if let Some(store_url) = config.store.uri {
-            let operator = factory.from_uri(store_url.as_str())?;
+            let operator = factory.load(store_url.as_str())?;
             let service = scoped::ServiceImpl::new(operator);
 
             endpoint = endpoint.bind_with_options(service.serve(), config.restate.service.into())

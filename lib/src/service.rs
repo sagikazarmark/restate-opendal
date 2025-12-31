@@ -1,6 +1,5 @@
 use std::{collections::HashMap, time::Duration};
 
-use futures::{StreamExt, TryStreamExt};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use url::Url;
@@ -70,20 +69,14 @@ pub(crate) async fn list<_L: LocationType>(
     path: &str,
     request: ListRequest<_L>,
 ) -> Result<ListResponse, Error> {
-    let lister;
+    let entries = match request.options {
+        Some(options) => operator.list_options(path, options).await?,
+        None => operator.list(path).await?,
+    };
 
-    if let Some(options) = request.options {
-        lister = operator.lister_options(path, options).await?;
-    } else {
-        lister = operator.lister(path).await?;
-    }
-
-    let entries: Vec<Entry> = lister
-        .map(|entry| entry.map(|e| e.into()))
-        .try_collect()
-        .await?;
-
-    Ok(ListResponse { entries })
+    Ok(ListResponse {
+        entries: entries.into_iter().map(Into::into).collect(),
+    })
 }
 
 #[derive(Default, Debug, Clone, Deserialize, Serialize, JsonSchema)]

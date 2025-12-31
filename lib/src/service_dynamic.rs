@@ -33,7 +33,7 @@ macro_rules! handler_impl {
                 async fn [<_ $name:snake>](&self, request: [<$name:camel Request>]) -> Result<$response, Error> {
                     let (uri, path) = parse_uri(request.location.clone());
 
-                    let operator = self.factory.from_uri(uri.as_str())?;
+                    let operator = self.factory.load(uri.as_str())?;
 
                     service::$name(&operator, path.as_str(), request).await
                 }
