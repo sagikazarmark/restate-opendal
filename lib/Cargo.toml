@@ -22,5 +22,5 @@ restate-sdk = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-typed-path = "0.12.2"
+typed-path = "0.12.3"
 url = { workspace = true }
