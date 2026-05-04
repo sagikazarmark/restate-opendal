@@ -15,7 +15,7 @@ restate-opendal = { path = "lib" }
 
 anyhow = "1.0"
 humantime-serde = "1.1.1"
-opendal = { version = "0.55" }
+opendal = { version = "0.56" }
 opendal-util = { version = "0.6.0", features = ["restate"] }
 schemars = { version = "1.2", features = ["jiff02", "url2"] }
 serde = { version = "1.0", features = ["derive"] }
