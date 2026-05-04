@@ -1432,7 +1432,7 @@ dependencies = [
  "futures",
  "globset",
  "opendal",
- "restate-sdk",
+ "restate-sdk 0.7.0",
  "schemars 1.2.1",
  "serde",
  "typed-path",
@@ -1980,7 +1980,7 @@ dependencies = [
  "opendal",
  "opendal-util",
  "paste",
- "restate-sdk",
+ "restate-sdk 0.8.0",
  "schemars 1.2.1",
  "serde",
  "serde_json",
@@ -1999,7 +1999,7 @@ dependencies = [
  "opendal",
  "opendal-util",
  "restate-opendal",
- "restate-sdk",
+ "restate-sdk 0.8.0",
  "schemars 1.2.1",
  "serde",
  "serde_json",
@@ -2027,7 +2027,38 @@ dependencies = [
  "prettyplease",
  "rand 0.9.2",
  "regress 0.10.3",
- "restate-sdk-macros",
+ "restate-sdk-macros 0.7.0",
+ "restate-sdk-shared-core",
+ "serde",
+ "serde_json",
+ "syn",
+ "thiserror 2.0.17",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "typify",
+ "uuid",
+]
+
+[[package]]
+name = "restate-sdk"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "01b38c38898ccf35444a65cc522a6f7a7c615baee0b987f268d22870796967cd"
+dependencies = [
+ "bytes",
+ "futures",
+ "http",
+ "http-body",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "jsonptr",
+ "pin-project-lite",
+ "prettyplease",
+ "rand 0.9.2",
+ "regress 0.10.3",
+ "restate-sdk-macros 0.8.0",
  "restate-sdk-shared-core",
  "schemars 1.2.1",
  "serde",
@@ -2046,6 +2077,17 @@ name = "restate-sdk-macros"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "96bd4f6bd3bbf00428590ef7290b413d9864217a0a65627fd9855a59296f77a6"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "restate-sdk-macros"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "635eb8a905a0f00d30262fc2752183f4759fbafe4093bc61c5ec369c52b828df"
 dependencies = [
  "proc-macro2",
  "quote",
