@@ -36,7 +36,7 @@ RUN cp -r ./target/$(xx-cargo --print-target-triple)/release/restate-opendal /us
 
 
 # FROM alpine:3.23.0@sha256:51183f2cfa6320055da30872f211093f9ff1d3cf06f39a0bdb212314c5dc7375
-FROM debian:13.4-slim@sha256:26f98ccd92fd0a44d6928ce8ff8f4921b4d2f535bfa07555ee5d18f61429cf0c
+FROM debian:13.5-slim@sha256:b6e2a152f22a40ff69d92cb397223c906017e1391a73c952b588e51af8883bf8
 
 COPY --from=builder /usr/local/bin/restate-opendal /usr/local/bin/
 
