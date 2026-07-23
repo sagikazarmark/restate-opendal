@@ -10,7 +10,7 @@ use figment::{
     providers::{Env, Format, Json, Toml, Yaml},
 };
 use opendal::{
-    DEFAULT_OPERATOR_REGISTRY,
+    OperatorRegistry,
     layers::{LoggingLayer, MimeGuessLayer, TracingLayer},
     services,
 };
@@ -18,10 +18,9 @@ use opendal_util::{
     ChainOperatorFactory, DefaultOperatorFactory, LambdaOperatorFactory, OperatorFactory,
     ProfileOperatorFactory,
 };
-use restate_sdk::{endpoint::Endpoint, http_server::HttpServer};
+use restate_sdk::{endpoint::Endpoint, http_server::HttpServer, service::IntoServiceDefinition};
 
-use restate_opendal::{dynamic, dynamic::Service as _, scoped, scoped::Service as _};
-use restate_opendal::{extra, extra::Service as _};
+use restate_opendal::{dynamic, extra, scoped};
 
 use crate::config::Config;
 
@@ -33,9 +32,9 @@ async fn main() -> Result<()> {
 
     let config = cli.load_config()?;
 
-    // Register HTTP scheme (for some reason these are not registered by default)
-    DEFAULT_OPERATOR_REGISTRY.register::<services::Http>(services::HTTP_SCHEME);
-    DEFAULT_OPERATOR_REGISTRY.register::<services::Http>("https");
+    opendal::init_default_registry();
+    // OpenDAL registers the HTTP backend for "http", but it also supports HTTPS URLs.
+    OperatorRegistry::get().register::<services::Http>("https");
 
     let mut endpoint = Endpoint::builder();
 
@@ -44,20 +43,24 @@ async fn main() -> Result<()> {
 
         if let Some(store_url) = config.store.uri {
             let operator = factory.load(store_url.as_str())?;
-            let service = scoped::ServiceImpl::new(operator);
+            let service = scoped::ServiceImpl::new(operator)
+                .into_service_definition()
+                .options(config.restate.service.into());
 
-            endpoint = endpoint.bind_with_options(service.serve(), config.restate.service.into())
+            endpoint = endpoint.bind(service)
         } else {
-            let service = dynamic::ServiceImpl::new(factory);
+            let service = dynamic::ServiceImpl::new(factory)
+                .into_service_definition()
+                .options(config.restate.service.into());
 
-            endpoint = endpoint.bind_with_options(service.serve(), config.restate.service.into())
+            endpoint = endpoint.bind(service)
         }
     }
 
     {
         let factory = create_factory(config.profiles.clone());
 
-        endpoint = endpoint.bind(extra::ServiceImpl::new(factory).serve());
+        endpoint = endpoint.bind(extra::ServiceImpl::new(factory));
     }
 
     let bind_addr = format!("0.0.0.0:{}", cli.port);
@@ -120,7 +123,7 @@ fn create_factory(profiles: HashMap<String, HashMap<String, String>>) -> impl Op
             .build(),
         |o| {
             o.layer(LoggingLayer::default())
-                .layer(TracingLayer)
+                .layer(TracingLayer::new())
                 .layer(MimeGuessLayer::default())
         },
     )

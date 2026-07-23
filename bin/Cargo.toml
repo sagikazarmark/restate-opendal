@@ -29,7 +29,7 @@ opendal = { workspace = true, features = [
   "layers-tracing",
 ] }
 opendal-util = { workspace = true }
-restate-sdk = { workspace = true }
+restate-sdk = { workspace = true, features = ["http_server", "rust_crypto", "tracing-span-filter"] }
 schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -36,8 +36,10 @@ macro_rules! handler_impl {
 
 include!("service_common.rs");
 
-impl Service for ServiceImpl {
+#[restate_sdk::service(name = "OpenDAL")]
+impl ServiceImpl {
     /// List entries in a given location.
+    #[handler]
     async fn list(
         &self,
         ctx: Context<'_>,
@@ -49,6 +51,7 @@ impl Service for ServiceImpl {
     }
 
     /// Presign an operation for read.
+    #[handler(name = "presignRead")]
     async fn presign_read(
         &self,
         ctx: Context<'_>,
@@ -60,6 +63,7 @@ impl Service for ServiceImpl {
     }
 
     /// Presign an operation for stat.
+    #[handler(name = "presignStat")]
     async fn presign_stat(
         &self,
         ctx: Context<'_>,
