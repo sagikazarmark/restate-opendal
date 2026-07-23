@@ -5,13 +5,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-#[restate_sdk::service]
-#[name = "OpenDALExtra"]
-pub trait Service {
-    /// Copy a file from one location to another.
-    async fn copy(request: Json<CopyRequest>) -> HandlerResult<()>;
-}
-
 #[derive(Default)]
 pub struct ServiceImpl<F>
 where
@@ -78,11 +71,13 @@ where
     }
 }
 
-impl<F> Service for ServiceImpl<F>
+#[restate_sdk::service(name = "OpenDALExtra")]
+impl<F> ServiceImpl<F>
 where
-    F: OperatorFactory,
+    F: OperatorFactory + 'static,
 {
     /// Copy a file from one location to another.
+    #[handler]
     async fn copy(&self, ctx: Context<'_>, request: Json<CopyRequest>) -> HandlerResult<()> {
         ctx.run(async || Ok(self._copy(request.into_inner()).await?))
             .await?;

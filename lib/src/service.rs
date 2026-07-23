@@ -391,6 +391,10 @@ pub struct ReadOptions {
     /// If file exists and it has been modified since the specified time, an error with kind
     /// [`ErrorKind::ConditionNotMatch`] will be returned.
     pub if_unmodified_since: Option<jiff::Timestamp>,
+    /// Known content length of the object.
+    ///
+    /// This execution hint allows OpenDAL to avoid extra metadata requests while planning reads.
+    pub content_length_hint: Option<u64>,
     /// Set `concurrent` for the operation.
     ///
     /// OpenDAL by default to read file without concurrent. This is not efficient for cases when users
@@ -446,6 +450,7 @@ impl From<ReadOptions> for opendal::options::ReadOptions {
             if_none_match: options.if_none_match,
             if_modified_since: options.if_modified_since.map(|t| t.into()),
             if_unmodified_since: options.if_unmodified_since.map(|t| t.into()),
+            content_length_hint: options.content_length_hint,
             concurrent: options.concurrent,
             chunk: options.chunk,
             gap: options.gap,

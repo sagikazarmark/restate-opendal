@@ -58,11 +58,13 @@ fn parse_uri(uri: Url) -> (String, String) {
 
 include!("service_common.rs");
 
-impl<F> Service for ServiceImpl<F>
+#[restate_sdk::service(name = "OpenDAL")]
+impl<F> ServiceImpl<F>
 where
-    F: OperatorFactory,
+    F: OperatorFactory + 'static,
 {
     /// List entries in a given location.
+    #[handler]
     async fn list(
         &self,
         ctx: Context<'_>,
@@ -74,6 +76,7 @@ where
     }
 
     /// Presign an operation for read.
+    #[handler(name = "presignRead")]
     async fn presign_read(
         &self,
         ctx: Context<'_>,
@@ -85,6 +88,7 @@ where
     }
 
     /// Presign an operation for stat.
+    #[handler(name = "presignStat")]
     async fn presign_stat(
         &self,
         ctx: Context<'_>,

@@ -1,35 +1,12 @@
 use opendal_util::to_restate_error;
-use restate_sdk::errors::{HandlerError, TerminalError};
+use restate_sdk::errors::HandlerError;
 
 #[derive(Debug)]
 pub struct Error(HandlerError);
 
 impl From<opendal::Error> for Error {
     fn from(err: opendal::Error) -> Self {
-        Error(to_restate_error(err))
-    }
-}
-
-impl From<anyhow::Error> for Error {
-    fn from(err: anyhow::Error) -> Self {
-        let msg = err.to_string();
-        if let Ok(opendal_err) = err.downcast::<opendal::Error>() {
-            Error(to_restate_error(opendal_err))
-        } else {
-            Error(HandlerError::from(msg))
-        }
-    }
-}
-
-impl From<TerminalError> for Error {
-    fn from(err: TerminalError) -> Self {
-        Error(err.into())
-    }
-}
-
-impl From<std::io::Error> for Error {
-    fn from(err: std::io::Error) -> Self {
-        Error(err.into())
+        Self(to_restate_error(err))
     }
 }
 
@@ -39,46 +16,43 @@ impl From<Error> for HandlerError {
     }
 }
 
-#[allow(dead_code)]
-pub trait TerminalExt<T, E> {
-    fn terminal(self) -> Result<T, HandlerError>;
-}
+#[cfg(test)]
+mod tests {
+    use opendal::ErrorKind;
 
-impl<T, E> TerminalExt<T, E> for Result<T, E>
-where
-    E: std::fmt::Display + std::fmt::Debug + Send + Sync + 'static,
-{
-    fn terminal(self) -> Result<T, HandlerError> {
-        self.map_err(|err| TerminalError::new(err.to_string()).into())
+    use super::*;
+
+    #[test]
+    fn maps_permanent_opendal_errors_to_terminal_errors() {
+        let err = opendal::Error::new(ErrorKind::NotFound, "not found").set_permanent();
+        let handler_error: HandlerError = Error::from(err).into();
+        let source: &(dyn std::error::Error + Send + Sync) = handler_error.as_ref();
+
+        assert!(source.to_string().contains("Terminal error [404]"));
+        assert!(source.to_string().contains("not found"));
+        assert!(
+            source
+                .source()
+                .unwrap()
+                .downcast_ref::<opendal::Error>()
+                .is_none()
+        );
     }
-}
 
-#[macro_export]
-macro_rules! terminal {
-    ($msg:literal $(,)?) => {
-        return Err(restate_sdk::errors::TerminalError::new($msg).into())
-    };
-    ($err:expr $(,)?) => {
-        return Err(restate_sdk::errors::TerminalError::new($err.to_string()).into())
-    };
-    ($fmt:expr, $($arg:tt)*) => {
-        return Err(restate_sdk::errors::TerminalError::new(format!($fmt, $($arg)*)).into())
-    };
-}
+    #[test]
+    fn keeps_transient_opendal_errors_retryable() {
+        let err = opendal::Error::new(ErrorKind::Unexpected, "try again").set_temporary();
+        let handler_error: HandlerError = Error::from(err).into();
+        let source: &(dyn std::error::Error + Send + Sync) = handler_error.as_ref();
 
-#[allow(dead_code)]
-pub trait OpendalResultExt<T> {
-    fn into_handler_error(self) -> Result<T, HandlerError>;
-}
-
-impl<T> OpendalResultExt<T> for Result<T, opendal::Error> {
-    fn into_handler_error(self) -> Result<T, HandlerError> {
-        self.map_err(|err| {
-            if err.is_permanent() {
-                return TerminalError::new(err.to_string()).into();
-            }
-
-            err.into()
-        })
+        assert!(source.to_string().starts_with("Retryable error:"));
+        assert!(source.to_string().contains("try again"));
+        assert!(
+            source
+                .source()
+                .unwrap()
+                .downcast_ref::<opendal::Error>()
+                .is_some()
+        );
     }
 }
