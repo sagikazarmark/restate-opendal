@@ -1967,12 +1967,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "paste"
-version = "1.0.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
-
-[[package]]
 name = "pastey"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2534,7 +2528,7 @@ dependencies = [
 
 [[package]]
 name = "restate-opendal"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "content_disposition",
  "futures",
@@ -2543,7 +2537,7 @@ dependencies = [
  "jiff",
  "opendal",
  "opendal-util",
- "paste",
+ "pastey",
  "restate-sdk",
  "schemars 1.2.1",
  "serde",
@@ -2553,8 +2547,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "restate-opendal-bin"
-version = "0.10.0"
+name = "restate-opendal-endpoint"
+version = "0.11.0"
 dependencies = [
  "anyhow",
  "clap",

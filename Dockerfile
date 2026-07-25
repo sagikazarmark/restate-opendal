@@ -1,41 +1,48 @@
+# syntax=docker/dockerfile:1
+# check=skip=CopyIgnoredFile
+
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:1.9.0@sha256:c64defb9ed5a91eacb37f96ccc3d4cd72521c4bd18d5442905b95e2226b0e707 AS xx
 
-FROM --platform=$BUILDPLATFORM rust:1.97.1-slim@sha256:5c6f46a6e4472ab1ca7ba7d494e6677f2f219ebc02f32025d3986f057635ec9c AS builder
+FROM --platform=$BUILDPLATFORM rust:1.97.1-bookworm@sha256:77fac8b98f9f46062bb680b6d25d5bcaabfc400143952ebc572e924bcbedc3fa AS base
+
+ARG CARGO_CHEF_VERSION=0.1.77
+RUN cargo install cargo-chef --version $CARGO_CHEF_VERSION --locked
 
 COPY --from=xx / /
 
-RUN apt-get update && apt-get install -y clang lld
-
 WORKDIR /usr/src/app
 
-COPY Cargo.toml Cargo.lock ./
-COPY bin/Cargo.toml ./bin/
-COPY lib/Cargo.toml ./lib/
 
-RUN mkdir -p bin/src && echo "fn main() {}" > bin/src/main.rs
-RUN mkdir -p lib/src && echo "// dummy" > lib/src/lib.rs
+FROM base AS deps
 
-RUN cargo fetch --locked
+COPY . .
+
+RUN cargo chef prepare --recipe-path recipe.json
+
+
+FROM base AS builder
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends clang lld && \
+    rm -rf /var/lib/apt/lists/*
 
 ARG TARGETPLATFORM
 
 RUN xx-apt-get update && \
-    xx-apt-get install -y \
-    gcc \
-    g++ \
-    libc6-dev \
-    pkg-config
+    xx-apt-get install -y --no-install-recommends gcc libc6-dev && \
+    rm -rf /var/lib/apt/lists/*
 
-COPY . ./
+COPY --from=deps /usr/src/app/recipe.json recipe.json
 
-ARG RESTATE_SERVICE_NAME
+RUN xx-cargo chef cook --locked --release --recipe-path recipe.json
 
-RUN xx-cargo build --release --bin restate-opendal
+COPY . .
+
+RUN xx-cargo build --locked --release --bin restate-opendal
 RUN xx-verify ./target/$(xx-cargo --print-target-triple)/release/restate-opendal
-RUN cp -r ./target/$(xx-cargo --print-target-triple)/release/restate-opendal /usr/local/bin/restate-opendal
+RUN cp ./target/$(xx-cargo --print-target-triple)/release/restate-opendal /usr/local/bin/restate-opendal
 
 
-# FROM alpine:3.23.0@sha256:51183f2cfa6320055da30872f211093f9ff1d3cf06f39a0bdb212314c5dc7375
 FROM debian:13.6-slim@sha256:020c0d20b9880058cbe785a9db107156c3c75c2ac944a6aa7ab59f2add76a7bd
 
 COPY --from=builder /usr/local/bin/restate-opendal /usr/local/bin/
@@ -43,5 +50,7 @@ COPY --from=builder /usr/local/bin/restate-opendal /usr/local/bin/
 ENV RUST_LOG=info
 
 EXPOSE 9080
+
+USER 65532:65532
 
 CMD ["restate-opendal"]

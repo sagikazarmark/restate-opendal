@@ -1,0 +1,4 @@
+[advisories]
+# restate-sdk transitively uses rsa 0.9.10, which has no fixed release.
+# OpenDAL 0.57 transitively pins quick-xml 0.39.4; upgrade when OpenDAL does.
+ignore = ["RUSTSEC-2023-0071", "RUSTSEC-2026-0194", "RUSTSEC-2026-0195"]
