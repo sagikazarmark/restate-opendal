@@ -1,12 +1,12 @@
 [package]
 name = "restate-opendal"
-edition = { workspace = true }
-version = { workspace = true }
-description = { workspace = true }
-license = { workspace = true }
-homepage = { workspace = true }
-repository = { workspace = true }
-publish = false
+version.workspace = true
+description.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
 
 [dependencies]
 content_disposition = "0.4.0"
@@ -14,9 +14,9 @@ futures = "0.3"
 http = "1.4.0"
 humantime-serde = { workspace = true }
 jiff = "0.2.19"
-opendal = { workspace = true, features = [ "services-memory" ] }
+opendal = { workspace = true, features = ["services-memory"] }
 opendal-util = { workspace = true }
-paste = "1.0.15"
+pastey = "0.2"
 restate-sdk = { workspace = true, features = ["hyper", "schemars"] }
 schemars = { workspace = true }
 serde = { workspace = true }

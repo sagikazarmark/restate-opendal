@@ -360,21 +360,21 @@ pub struct ReadOptions {
     ///
     /// This option can be used to retrieve the data of a specified version of the given path.
     ///
-    /// If the version doesn't exist, an error with kind [`ErrorKind::NotFound`] will be returned.
+    /// If the version doesn't exist, an error with kind `ErrorKind::NotFound` will be returned.
     pub version: Option<String>,
 
     /// Set `if_match` for this operation.
     ///
     /// This option can be used to check if the file's `ETag` matches the given `ETag`.
     ///
-    /// If file exists and it's etag doesn't match, an error with kind [`ErrorKind::ConditionNotMatch`]
+    /// If file exists and it's etag doesn't match, an error with kind `ErrorKind::ConditionNotMatch`
     /// will be returned.
     pub if_match: Option<String>,
     /// Set `if_none_match` for this operation.
     ///
     /// This option can be used to check if the file's `ETag` doesn't match the given `ETag`.
     ///
-    /// If file exists and it's etag match, an error with kind [`ErrorKind::ConditionNotMatch`]
+    /// If file exists and its etag matches, an error with kind `ErrorKind::ConditionNotMatch`
     /// will be returned.
     pub if_none_match: Option<String>,
     /// Set `if_modified_since` for this operation.
@@ -382,14 +382,14 @@ pub struct ReadOptions {
     /// This option can be used to check if the file has been modified since the given timestamp.
     ///
     /// If file exists and it hasn't been modified since the specified time, an error with kind
-    /// [`ErrorKind::ConditionNotMatch`] will be returned.
+    /// `ErrorKind::ConditionNotMatch` will be returned.
     pub if_modified_since: Option<jiff::Timestamp>,
     /// Set `if_unmodified_since` for this operation.
     ///
     /// This feature can be used to check if the file hasn't been modified since the given timestamp.
     ///
     /// If file exists and it has been modified since the specified time, an error with kind
-    /// [`ErrorKind::ConditionNotMatch`] will be returned.
+    /// `ErrorKind::ConditionNotMatch` will be returned.
     pub if_unmodified_since: Option<jiff::Timestamp>,
     /// Known content length of the object.
     ///
@@ -404,16 +404,16 @@ pub struct ReadOptions {
     /// By setting `concurrent`, opendal will fetch chunks concurrently with
     /// the give chunk size.
     ///
-    /// Refer to [`crate::docs::performance`] for more details.
+    /// Refer to OpenDAL's performance documentation for more details.
     #[serde(default)]
     pub concurrent: usize,
     /// Set `chunk` for the operation.
     ///
     /// OpenDAL will use services' preferred chunk size by default. Users can set chunk based on their own needs.
     ///
-    /// Refer to [`crate::docs::performance`] for more details.
+    /// Refer to OpenDAL's performance documentation for more details.
     pub chunk: Option<usize>,
-    /// Controls the optimization strategy for range reads in [`Reader::fetch`].
+    /// Controls the optimization strategy for range reads in `Reader::fetch`.
     ///
     /// When performing range reads, if the gap between two requested ranges is smaller than
     /// the configured `gap` size, OpenDAL will merge these ranges into a single read request
@@ -424,7 +424,7 @@ pub struct ReadOptions {
     /// that are close to each other, as it reduces the overhead of multiple network requests
     /// at the cost of transferring some additional data.
     ///
-    /// Refer to [`crate::docs::performance`] for more details.
+    /// Refer to OpenDAL's performance documentation for more details.
     pub gap: Option<usize>,
 
     /// Specify the content-type header that should be sent back by the operation.
@@ -469,21 +469,21 @@ pub struct StatOptions {
     ///
     /// This options can be used to retrieve the data of a specified version of the given path.
     ///
-    /// If the version doesn't exist, an error with kind [`ErrorKind::NotFound`] will be returned.
+    /// If the version doesn't exist, an error with kind `ErrorKind::NotFound` will be returned.
     pub version: Option<String>,
 
     /// Set `if_match` for this operation.
     ///
     /// This option can be used to check if the file's `ETag` matches the given `ETag`.
     ///
-    /// If file exists and it's etag doesn't match, an error with kind [`ErrorKind::ConditionNotMatch`]
+    /// If file exists and its etag doesn't match, an error with kind `ErrorKind::ConditionNotMatch`
     /// will be returned.
     pub if_match: Option<String>,
     /// Set `if_none_match` for this operation.
     ///
     /// This option can be used to check if the file's `ETag` doesn't match the given `ETag`.
     ///
-    /// If file exists and it's etag match, an error with kind [`ErrorKind::ConditionNotMatch`]
+    /// If file exists and its etag matches, an error with kind `ErrorKind::ConditionNotMatch`
     /// will be returned.
     pub if_none_match: Option<String>,
     /// Set `if_modified_since` for this operation.
@@ -491,14 +491,14 @@ pub struct StatOptions {
     /// This option can be used to check if the file has been modified since the given timestamp.
     ///
     /// If file exists and it hasn't been modified since the specified time, an error with kind
-    /// [`ErrorKind::ConditionNotMatch`] will be returned.
+    /// `ErrorKind::ConditionNotMatch` will be returned.
     pub if_modified_since: Option<jiff::Timestamp>,
     /// Set `if_unmodified_since` for this operation.
     ///
     /// This feature can be used to check if the file hasn't been modified since the given timestamp.
     ///
     /// If file exists and it has been modified since the specified time, an error with kind
-    /// [`ErrorKind::ConditionNotMatch`] will be returned.
+    /// `ErrorKind::ConditionNotMatch` will be returned.
     pub if_unmodified_since: Option<jiff::Timestamp>,
 
     /// Specify the content-type header that should be sent back by the operation.

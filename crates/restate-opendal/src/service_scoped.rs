@@ -1,68 +1,43 @@
-use opendal_util::OperatorFactory;
+use opendal::Operator;
 use restate_sdk::prelude::*;
-use url::Url;
 
 pub use crate::service::*;
 use crate::{error::Error, service};
 
-pub type Location = Url;
+pub type Location = String;
 
-pub struct ServiceImpl<F>
-where
-    F: OperatorFactory,
-{
-    factory: F,
+pub struct ServiceImpl {
+    operator: Operator,
 }
 
-impl<F> ServiceImpl<F>
-where
-    F: OperatorFactory,
-{
-    pub fn new(factory: F) -> Self {
-        Self { factory }
+impl ServiceImpl {
+    pub fn new(operator: Operator) -> Self {
+        Self { operator }
     }
 }
 
 macro_rules! handler_impl {
     ($name:ident, $response:ty) => {
-        paste::paste! {
-            impl<F> ServiceImpl<F>
-            where
-                F: OperatorFactory,
-            {
+        pastey::paste! {
+            impl ServiceImpl {
                 async fn [<_ $name:snake>](&self, request: [<$name:camel Request>]) -> Result<$response, Error> {
-                    let (uri, path) = parse_uri(request.location.clone());
-
-                    let operator = self.factory.load(uri.as_str())?;
-
-                    service::$name(&operator, path.as_str(), request).await
+                    service::$name(&self.operator, request.location.clone().as_str(), request).await
                 }
             }
         }
     };
 
     ($name:ident) => {
-        paste::paste! {
+        pastey::paste! {
             handler_impl!($name, [<$name:camel Response>]);
         }
     };
 }
 
-fn parse_uri(uri: Url) -> (String, String) {
-    let mut uri = uri;
-    let path = uri.path().to_string();
-    uri.set_path("");
-
-    (uri.to_string(), path)
-}
-
 include!("service_common.rs");
 
 #[restate_sdk::service(name = "OpenDAL")]
-impl<F> ServiceImpl<F>
-where
-    F: OperatorFactory + 'static,
-{
+impl ServiceImpl {
     /// List entries in a given location.
     #[handler]
     async fn list(

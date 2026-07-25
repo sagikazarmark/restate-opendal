@@ -1,19 +1,20 @@
 [package]
-name = "restate-opendal-bin"
-edition = { workspace = true }
-version = { workspace = true }
-description = { workspace = true }
-license = { workspace = true }
-homepage = { workspace = true }
-repository = { workspace = true }
-publish = false
+name = "restate-opendal-endpoint"
+version.workspace = true
+description = "Standalone endpoint hosting the OpenDAL service for Restate"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
 
 [[bin]]
 name = "restate-opendal"
 path = "src/main.rs"
+doc = false
 
 [dependencies]
-restate-opendal = { workspace = true }
+restate-opendal = { path = "../restate-opendal", version = "0.11.0" }
 
 anyhow = { workspace = true }
 clap = { version = "4.5.57", features = ["derive", "env"] }
